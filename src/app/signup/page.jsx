@@ -239,7 +239,7 @@ export default function Signup() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-[#e4b8ae] text-black font-medium py-4 px-6 rounded-xl text-base hover:bg-[#d4a89e] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-[#e4b8ae] text-white font-medium py-4 px-6 rounded-xl text-base hover:bg-[#d4a89e] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Creating Account...' : 'Sign Up'}
           </button>
@@ -248,7 +248,7 @@ export default function Signup() {
           <Link href="/login">
             <button
               type="button"
-              className="w-full bg-[#e4b8ae] text-black font-medium py-4 px-6 rounded-xl text-base hover:bg-[#d4a89e] transition-colors"
+              className="w-full bg-[#e4b8ae] text-white font-medium py-4 px-6 rounded-xl text-base hover:bg-[#d4a89e] transition-colors"
             >
               Login
             </button>

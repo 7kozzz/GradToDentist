@@ -113,10 +113,7 @@ export default function Home() {
         {/* Arabic Description */}
         <div className="max-w-4xl text-center mb-12 px-4">
           <p className="text-gray-700 leading-relaxed text-lg" dir="rtl">
-            هذا الكورس مصمم خصيصا لحديثي التخرج لخوض حياة مهنية ملية بثقة وكفاءة عالية ابتداء من صنع السيرة الذاتية إلى القبول 
-            بالوظيفة وما بعد القبول، حيث يجمع بين الجوانب النظرية والعملية في بيئة العمل في القطاع الخاص لفهم اساسيات وجدولها على 
-            ذراية كاملة بجميع جوانبها. كما نقدم تدريبا عمليا شاملا على المهارات السريرية وأساسيات التعامل مع المرضى بالإضافة إلى 
-            توعية حولاخطاء الطبية وأساليب تطوير الذات
+           هذا الكورس مصمم لحديثي التخرج والعاطلين عن العمل لخوض حياة مهنية مليئة بثقة وكفاءة عالية، ابتداءا من صنع السيرة الذاتية الى القبول بالوظيفة ومابعد القبول حيث يجمع بين الجوانب النظرية والعملية في بيئة العمل في القطاع الخاص، كما نقدم تدريبًا عملًيا شاملاً على المهارات السريرية واساسيات التعامل مع المرضى، بالاضافة الى التوعية حول الأخطاء الطبية وأساليب تطوير الذات
           </p>
         </div>
 
@@ -160,16 +157,16 @@ export default function Home() {
           )}
         </div>
 
-        {/* Buttons - Clean and smaller */}
+        {/* Buttons - Clean and smaller with white text */}
         <div className="flex flex-col gap-3 w-full max-w-xs">
           <Link href="/login">
-            <button className="w-full bg-[#e4b8ae] text-black font-medium py-3 px-8 rounded-lg text-base hover:bg-[#d4a89e] transition-colors">
+            <button className="w-full bg-[#e4b8ae] text-white font-medium py-3 px-8 rounded-lg text-base hover:bg-[#d4a89e] transition-colors">
               Login
             </button>
           </Link>
           
           <Link href="/signup">
-            <button className="w-full bg-[#e4b8ae] text-black font-medium py-3 px-8 rounded-lg text-base hover:bg-[#d4a89e] transition-colors">
+            <button className="w-full bg-[#e4b8ae] text-white font-medium py-3 px-8 rounded-lg text-base hover:bg-[#d4a89e] transition-colors">
               Sign Up
             </button>
           </Link>
@@ -183,10 +180,10 @@ export default function Home() {
             
             {/* Brand & About */}
             <div className="text-center">
-              <h3 className="text-xl font-bold text-gray-800 mb-2">DrMaha</h3>
+              <h3 className="text-xl font-bold text-white mb-2">DrMaha</h3>
               <Link 
                 href="/about"
-                className="text-sm text-gray-700 hover:text-gray-900 underline transition-colors"
+                className="text-sm text-white hover:text-gray-200 underline transition-colors"
               >
                 About Me
               </Link>
@@ -224,7 +221,7 @@ export default function Home() {
 
             {/* Copyright */}
             <div className="text-center">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-white">
                 © {new Date().getFullYear()} DrMaha
               </p>
             </div>

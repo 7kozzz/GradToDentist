@@ -254,7 +254,7 @@ export default function CourseDetails() {
       <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
         <button
           onClick={handlePayment}
-          className="w-full bg-[#e4b8ae] text-black font-medium py-4 rounded-xl text-base hover:bg-[#d4a89e] transition-colors flex items-center justify-center gap-2"
+          className="w-full bg-[#e4b8ae] text-white font-medium py-4 rounded-xl text-base hover:bg-[#d4a89e] transition-colors flex items-center justify-center gap-2"
         >
           <span>💳</span>
           <span>Unlock {pricing?.Price || '649.00'} SAR</span>

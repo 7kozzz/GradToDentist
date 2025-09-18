@@ -91,7 +91,7 @@ export default function AboutPage() {
         <div className="max-w-6xl mx-auto flex items-center">
           <Link 
             href="/"
-            className="flex items-center gap-2 text-gray-800 hover:text-gray-900 transition-colors"
+            className="flex items-center gap-2 text-white hover:text-gray-200 transition-colors"
           >
             <FaArrowLeft className="text-lg" />
             <span className="font-medium">Back to Home</span>
@@ -126,12 +126,12 @@ export default function AboutPage() {
           <div className="space-y-12 mb-16">
             {courseContent.map((section, index) => (
               <div key={index} className="bg-[#F7CCC5] rounded-lg p-8">
-                <h2 className="text-2xl font-bold text-gray-800 mb-6 text-center" dir="rtl">
+                <h2 className="text-2xl font-bold text-white mb-6 text-center" dir="rtl">
                   {section.title}
                 </h2>
                 <ul className="space-y-3" dir="rtl">
                   {section.topics.map((topic, topicIndex) => (
-                    <li key={topicIndex} className="flex items-start gap-3 text-gray-700">
+                    <li key={topicIndex} className="flex items-start gap-3 text-white">
                       <span className="text-[#e4b8ae] text-lg">•</span>
                       <span className="leading-relaxed">{topic}</span>
                     </li>
@@ -183,10 +183,10 @@ export default function AboutPage() {
             
             {/* Brand & About */}
             <div className="text-center">
-              <h3 className="text-xl font-bold text-gray-800 mb-2">DrMaha</h3>
+              <h3 className="text-xl font-bold text-white mb-2">DrMaha</h3>
               <Link 
                 href="/about"
-                className="text-sm text-gray-700 hover:text-gray-900 underline transition-colors"
+                className="text-sm text-white hover:text-gray-200 underline transition-colors"
               >
                 About Me
               </Link>
@@ -198,7 +198,7 @@ export default function AboutPage() {
                 href="https://wa.me/966542164943"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-2 text-gray-700 hover:text-green-600 transition-colors"
+                className="flex items-center gap-2 text-white hover:text-green-400 transition-colors"
               >
                 <FaWhatsapp className="text-lg" />
                 <span className="font-medium">+966 54 216 4943</span>
@@ -225,7 +225,7 @@ export default function AboutPage() {
 
             {/* Copyright */}
             <div className="text-center">
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-white">
                 © {new Date().getFullYear()} DrMaha
               </p>
             </div>
