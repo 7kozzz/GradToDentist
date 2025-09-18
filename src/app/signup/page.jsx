@@ -117,7 +117,7 @@ export default function Signup() {
         {/* Form */}
         <form className="w-full max-w-2xl space-y-6" onSubmit={handleSubmit}>
           {/* First Name and Last Name */}
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
             <input
               type="text"
               name="firstName"
