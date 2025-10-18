@@ -20,7 +20,10 @@ import {
   ChevronRight,
   Clock,
   Send,
-  MessageCircle
+  MessageCircle,
+  FileText,
+  FolderArchive,
+  Download
 } from 'lucide-react';
 
 export default function PremiumDashboard() {
@@ -30,6 +33,7 @@ export default function PremiumDashboard() {
   const [loading, setLoading] = useState(true);
   const [videoLoading, setVideoLoading] = useState(false);
   const [error, setError] = useState('');
+  const [playbackRate, setPlaybackRate] = useState(1);
   
   // Comments states
   const [comments, setComments] = useState([]);
@@ -45,6 +49,7 @@ export default function PremiumDashboard() {
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [isBuffering, setIsBuffering] = useState(false);
   
   const videoRef = useRef(null);
   const containerRef = useRef(null);
@@ -65,6 +70,84 @@ export default function PremiumDashboard() {
     
     fetchCourses();
   }, [currentUser, userDoc, router]);
+
+  // Add video event listeners for better buffering detection
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video || !videoUrl) return;
+
+    const handleWaiting = () => {
+      console.log('Video buffering...');
+      setIsBuffering(true);
+    };
+    
+    const handleCanPlay = () => {
+      console.log('Video can play');
+      setIsBuffering(false);
+      setVideoLoading(false);
+    };
+    
+    const handlePlaying = () => {
+      console.log('Video playing');
+      setIsBuffering(false);
+      setVideoLoading(false);
+    };
+
+    const handleStalled = () => {
+      console.log('Video stalled');
+      setIsBuffering(true);
+    };
+
+    const handleLoadedData = () => {
+      console.log('Video data loaded');
+      setVideoLoading(false);
+    };
+
+    const handleError = (e) => {
+      console.error('Video error:', e);
+      console.error('Video error details:', video.error);
+      let errorMsg = 'Video playback error. ';
+      
+      if (video.error) {
+        switch(video.error.code) {
+          case 1:
+            errorMsg += 'Video loading aborted.';
+            break;
+          case 2:
+            errorMsg += 'Network error occurred.';
+            break;
+          case 3:
+            errorMsg += 'Video format not supported.';
+            break;
+          case 4:
+            errorMsg += 'Video source not found.';
+            break;
+          default:
+            errorMsg += 'Unknown error occurred.';
+        }
+      }
+      
+      setError(errorMsg);
+      setIsBuffering(false);
+      setVideoLoading(false);
+    };
+
+    video.addEventListener('waiting', handleWaiting);
+    video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('playing', handlePlaying);
+    video.addEventListener('stalled', handleStalled);
+    video.addEventListener('loadeddata', handleLoadedData);
+    video.addEventListener('error', handleError);
+
+    return () => {
+      video.removeEventListener('waiting', handleWaiting);
+      video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('playing', handlePlaying);
+      video.removeEventListener('stalled', handleStalled);
+      video.removeEventListener('loadeddata', handleLoadedData);
+      video.removeEventListener('error', handleError);
+    };
+  }, [videoUrl]);
 
   async function fetchCourses() {
     try {
@@ -109,18 +192,50 @@ export default function PremiumDashboard() {
     setCurrentCourse(course);
     setIsPlaying(false);
     setError('');
+    setIsBuffering(false);
+    
+    // Pause current video if playing
+    if (videoRef.current) {
+      videoRef.current.pause();
+    }
     
     try {
       let finalUrl = course.url;
       
       // If it's a Firebase Storage path, get the download URL
-      if (course.url.includes('firebasestorage.googleapis.com') || course.url.startsWith('gs://')) {
-        console.log('Getting Firebase Storage download URL...');
-        const videoRef = ref(storage, course.url);
-        finalUrl = await getDownloadURL(videoRef);
+      if (course.url.startsWith('gs://')) {
+        console.log('Converting gs:// path to download URL...');
+        // Extract the path after gs://bucket-name/
+        const pathMatch = course.url.match(/gs:\/\/[^\/]+\/(.+)/);
+        if (pathMatch) {
+          const storagePath = pathMatch[1];
+          const videoStorageRef = ref(storage, storagePath);
+          finalUrl = await getDownloadURL(videoStorageRef);
+          console.log('Download URL obtained:', finalUrl);
+        } else {
+          throw new Error('Invalid Firebase Storage path format');
+        }
+      } else if (course.url.includes('firebasestorage.googleapis.com')) {
+        // Already a download URL
+        finalUrl = course.url;
+        console.log('Using existing download URL');
+      } else if (!course.url.startsWith('http://') && !course.url.startsWith('https://')) {
+        // Treat as storage path
+        console.log('Treating as storage path:', course.url);
+        const videoStorageRef = ref(storage, course.url);
+        finalUrl = await getDownloadURL(videoStorageRef);
         console.log('Download URL obtained:', finalUrl);
       }
       
+      console.log('Final video URL:', finalUrl);
+      
+      // Clear old video URL first
+      setVideoUrl('');
+      
+      // Small delay to ensure video element resets
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Set new video URL
       setVideoUrl(finalUrl);
       setCurrentTime(0);
       
@@ -129,7 +244,6 @@ export default function PremiumDashboard() {
     } catch (error) {
       console.error('Error loading video:', error);
       setError('Failed to load video: ' + error.message);
-    } finally {
       setVideoLoading(false);
     }
   }
@@ -159,7 +273,6 @@ export default function PremiumDashboard() {
       setCommentsLoading(false);
     });
     
-    // Store unsubscribe function to clean up later
     return unsubscribe;
   }
 
@@ -206,6 +319,10 @@ export default function PremiumDashboard() {
     return date.toLocaleDateString();
   }
 
+  function handleDownload(url, filename) {
+    window.open(url, '_blank');
+  }
+
   function handlePlayPause() {
     if (!videoRef.current) return;
     
@@ -226,8 +343,28 @@ export default function PremiumDashboard() {
   function handleSeek(e) {
     if (!videoRef.current) return;
     const seekTime = parseFloat(e.target.value);
+    
+    // Pause video while seeking to reduce buffering
+    const wasPlaying = !videoRef.current.paused;
+    videoRef.current.pause();
+    
     videoRef.current.currentTime = seekTime;
     setCurrentTime(seekTime);
+    setIsBuffering(true);
+    
+    // Resume playing after a short delay if it was playing
+    if (wasPlaying) {
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.play().catch(err => {
+            console.error('Error resuming playback:', err);
+            setIsBuffering(false);
+          });
+        }
+      }, 500);
+    } else {
+      setIsBuffering(false);
+    }
   }
 
   function handleVolumeChange(e) {
@@ -235,6 +372,13 @@ export default function PremiumDashboard() {
     setVolume(newVolume);
     if (videoRef.current) {
       videoRef.current.volume = newVolume;
+    }
+  }
+
+  function handlePlaybackRateChange(rate) {
+    setPlaybackRate(rate);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = rate;
     }
   }
 
@@ -307,7 +451,6 @@ export default function PremiumDashboard() {
         <div className="p-4 border-b border-[#d4a89e] flex items-center justify-between">
           <h2 className="text-white font-semibold">Course Episodes</h2>
           <div className="flex items-center gap-2">
-            {/* Mobile close button */}
             <button
               onClick={() => setShowSidebar(false)}
               className="md:hidden p-2 text-white hover:text-gray-200 transition-colors"
@@ -330,7 +473,6 @@ export default function PremiumDashboard() {
               key={course.id}
               onClick={() => {
                 loadVideo(course);
-                // Close sidebar on mobile after selecting video
                 if (window.innerWidth < 768) {
                   setShowSidebar(false);
                 }
@@ -390,31 +532,60 @@ export default function PremiumDashboard() {
         {/* Video Player */}
         <div className="bg-black relative aspect-video" ref={containerRef}>
           {error && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black">
+            <div className="absolute inset-0 flex items-center justify-center bg-black z-10">
               <div className="text-center text-white p-4">
                 <p className="mb-2">Error loading video</p>
-                <p className="text-sm text-gray-400">{error}</p>
+                <p className="text-sm text-gray-400 mb-4">{error}</p>
+                <button
+                  onClick={() => currentCourse && loadVideo(currentCourse)}
+                  className="px-4 py-2 bg-[#e4b8ae] text-white rounded-lg hover:bg-[#d4a89e]"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {/* Buffering Indicator */}
+          {isBuffering && !error && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#e4b8ae] mx-auto mb-4"></div>
+                <p className="text-white">Buffering...</p>
               </div>
             </div>
           )}
           
           {currentCourse && videoUrl && !error ? (
             <>
-              <video
-                ref={videoRef}
-                src={videoUrl}
-                className="w-full h-full object-contain"
-                onLoadedMetadata={handleTimeUpdate}
-                onTimeUpdate={handleTimeUpdate}
-                onPlay={() => setIsPlaying(true)}
-                onPause={() => setIsPlaying(false)}
-                onEnded={() => setIsPlaying(false)}
-                playsInline
-                preload="metadata"
-              />
+              <div 
+                className="relative w-full h-full cursor-pointer"
+                onClick={handlePlayPause}
+              >
+                <video
+                  ref={videoRef}
+                  src={videoUrl}
+                  className="w-full h-full object-contain"
+                  onLoadedMetadata={handleTimeUpdate}
+                  onTimeUpdate={handleTimeUpdate}
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  onEnded={() => setIsPlaying(false)}
+                  onSeeking={() => setIsBuffering(true)}
+                  onSeeked={() => setIsBuffering(false)}
+                  playsInline
+                  preload="metadata"
+                  controlsList="nodownload"
+                />
+              </div>
+              
+              {/* Watermark */}
+              <div className="absolute top-4 right-4 text-white text-opacity-20 text-sm pointer-events-none select-none">
+                {userDoc?.email}
+              </div>
               
               {/* Custom Controls */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 md:p-4">
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-2 md:p-4 pointer-events-auto">
                 {/* Progress Bar */}
                 <div className="mb-2 md:mb-4">
                   <input
@@ -423,6 +594,7 @@ export default function PremiumDashboard() {
                     max={duration || 0}
                     value={currentTime}
                     onChange={handleSeek}
+                    onClick={(e) => e.stopPropagation()}
                     className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
                     style={{
                       background: `linear-gradient(to right, #e4b8ae ${(currentTime / duration) * 100 || 0}%, #4b5563 ${(currentTime / duration) * 100 || 0}%)`
@@ -438,28 +610,40 @@ export default function PremiumDashboard() {
                 <div className="flex items-center justify-between text-white">
                   <div className="flex items-center gap-2 md:gap-4">
                     <button
-                      onClick={skipBackward}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        skipBackward();
+                      }}
                       className="p-1 md:p-2 hover:bg-white/20 rounded-full transition-colors"
                     >
                       <SkipBack className="w-4 md:w-6 h-4 md:h-6" />
                     </button>
                     
                     <button
-                      onClick={handlePlayPause}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePlayPause();
+                      }}
                       className="p-2 md:p-3 hover:bg-white/20 rounded-full transition-colors"
                     >
                       {isPlaying ? <Pause className="w-6 md:w-8 h-6 md:h-8" /> : <Play className="w-6 md:w-8 h-6 md:h-8" />}
                     </button>
                     
                     <button
-                      onClick={skipForward}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        skipForward();
+                      }}
                       className="p-1 md:p-2 hover:bg-white/20 rounded-full transition-colors"
                     >
                       <SkipForward className="w-4 md:w-6 h-4 md:h-6" />
                     </button>
                     
                     <button
-                      onClick={toggleMute}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleMute();
+                      }}
                       className="p-1 md:p-2 hover:bg-white/20 rounded-full transition-colors"
                     >
                       {isMuted ? <VolumeX className="w-4 md:w-6 h-4 md:h-6" /> : <Volume2 className="w-4 md:w-6 h-4 md:h-6" />}
@@ -472,12 +656,16 @@ export default function PremiumDashboard() {
                       step={0.1}
                       value={volume}
                       onChange={handleVolumeChange}
-                      className="w-12 md:w-20"
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-12 md:w-20 hidden md:block"
                     />
                   </div>
                   
                   <button
-                    onClick={toggleFullscreen}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleFullscreen();
+                    }}
                     className="p-1 md:p-2 hover:bg-white/20 rounded-full transition-colors hidden md:block"
                   >
                     {isFullscreen ? <Minimize className="w-6 h-6" /> : <Maximize className="w-6 h-6" />}
@@ -518,14 +706,43 @@ export default function PremiumDashboard() {
                   </span>
                 </div>
                 
-                <p className="text-gray-700 leading-relaxed text-sm md:text-base">
+                <p className="text-gray-700 leading-relaxed text-sm md:text-base mb-4">
                   {currentCourse.description || 'No description available for this episode.'}
                 </p>
+
+                {/* Download Section */}
+                {(currentCourse.pdf || currentCourse.zip) && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Download className="w-5 h-5 text-[#e4b8ae]" />
+                      <h3 className="text-lg font-semibold text-gray-900">Downloads</h3>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {currentCourse.pdf && (
+                        <button
+                          onClick={() => handleDownload(currentCourse.pdf, `${currentCourse.title}.pdf`)}
+                          className="flex items-center gap-2 px-4 py-2 bg-[#e4b8ae] text-white rounded-lg hover:bg-[#d4a89e] transition-colors shadow-sm"
+                        >
+                          <FileText className="w-4 h-4" />
+                          <span className="font-medium text-sm">Download PDF</span>
+                        </button>
+                      )}
+                      {currentCourse.zip && (
+                        <button
+                          onClick={() => handleDownload(currentCourse.zip, `${currentCourse.title}.zip`)}
+                          className="flex items-center gap-2 px-4 py-2 bg-[#e4b8ae] text-white rounded-lg hover:bg-[#d4a89e] transition-colors shadow-sm"
+                        >
+                          <FolderArchive className="w-4 h-4" />
+                          <span className="font-medium text-sm">Download ZIP</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Comments Section */}
               <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-                {/* Comments Header */}
                 <div className="p-4 md:p-6 border-b border-gray-200">
                   <div className="flex items-center gap-2 mb-4">
                     <MessageCircle className="w-5 h-5 text-[#e4b8ae]" />
@@ -534,7 +751,6 @@ export default function PremiumDashboard() {
                     </h3>
                   </div>
 
-                  {/* Comment Input */}
                   <div className="flex gap-3 bg-gray-50 p-3 md:p-4 rounded-lg">
                     <div className="w-8 md:w-10 h-8 md:h-10 bg-[#e4b8ae] rounded-full flex items-center justify-center flex-shrink-0">
                       <span className="text-white font-medium text-xs md:text-sm">
@@ -568,7 +784,6 @@ export default function PremiumDashboard() {
                   </div>
                 </div>
 
-                {/* Comments List */}
                 <div className="max-h-64 md:max-h-96 overflow-y-auto">
                   {commentsLoading ? (
                     <div className="p-4 md:p-6 text-center">
