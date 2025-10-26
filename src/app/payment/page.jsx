@@ -33,15 +33,20 @@ export default function Payment() {
   }, [currentUser, userDoc, router, searchParams])
 
   async function checkPaymentStatus() {
-    // Check URL parameters
-    const respStatus = searchParams.get('respStatus')
-    const respMessage = searchParams.get('respMessage')
+    // Log all parameters to see what PayTabs actually sends
+    console.log('All URL parameters:', Array.from(searchParams.entries()))
+    
+    // Check for success parameter
+    const success = searchParams.get('success')
     const tranRef = searchParams.get('tranRef')
     const cartId = searchParams.get('cartId')
     
+    console.log('Payment success:', success)
+    console.log('Transaction ref:', tranRef)
+    console.log('Cart ID:', cartId)
+    
     // Check if payment was successful
-    // PayTabs sends respStatus=A for approved/success
-    if (respStatus === 'A' && tranRef) {
+    if (success === 'true' && currentUser) {
       setProcessingPayment(true)
       try {
         const userRef = doc(db, 'Users', currentUser.uid)
@@ -52,8 +57,9 @@ export default function Payment() {
           isPremium: true,
           renewDate: renewDate,
           paymentDate: new Date(),
-          transactionId: tranRef,
-          cartId: cartId || null
+          transactionId: tranRef || 'completed',
+          cartId: cartId || null,
+          paymentCompleted: true
         })
 
         setTimeout(() => {
@@ -63,8 +69,7 @@ export default function Payment() {
         console.error('Error updating user:', error)
         alert('Payment was successful but there was an error updating your account. Please contact support.')
       }
-    } else if (respStatus && respStatus !== 'A') {
-      // Payment failed
+    } else if (success === 'false') {
       alert('Payment was not successful. Please try again.')
     }
   }
@@ -176,6 +181,3 @@ export default function Payment() {
     </div>
   )
 }
-
-
-//https://gradtodentist.com/payment?respStatus=A&tranRef=[transaction_id]&cartId=[cart_id]
