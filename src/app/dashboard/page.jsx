@@ -101,25 +101,50 @@ export default function PremiumDashboard() {
     const video = videoRef.current;
     if (!video || !videoUrl) return;
 
+    let bufferTimeout = null;
+
     const handleWaiting = () => {
-      setIsBuffering(true);
+      console.log('Video waiting');
+      bufferTimeout = setTimeout(() => {
+        setIsBuffering(true);
+      }, 500);
     };
     
     const handleCanPlay = () => {
+      console.log('Video can play');
+      if (bufferTimeout) clearTimeout(bufferTimeout);
+      setIsBuffering(false);
+      setVideoLoading(false);
+    };
+    
+    const handleCanPlayThrough = () => {
+      console.log('Video can play through');
+      if (bufferTimeout) clearTimeout(bufferTimeout);
       setIsBuffering(false);
       setVideoLoading(false);
     };
     
     const handlePlaying = () => {
+      console.log('Video playing');
+      if (bufferTimeout) clearTimeout(bufferTimeout);
       setIsBuffering(false);
       setVideoLoading(false);
     };
 
     const handleStalled = () => {
+      console.log('Video stalled');
       setIsBuffering(true);
     };
 
     const handleLoadedData = () => {
+      console.log('Video data loaded');
+      if (bufferTimeout) clearTimeout(bufferTimeout);
+      setVideoLoading(false);
+      setIsBuffering(false);
+    };
+
+    const handleLoadedMetadata = () => {
+      console.log('Video metadata loaded');
       setVideoLoading(false);
     };
 
@@ -154,17 +179,22 @@ export default function PremiumDashboard() {
 
     video.addEventListener('waiting', handleWaiting);
     video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('canplaythrough', handleCanPlayThrough);
     video.addEventListener('playing', handlePlaying);
     video.addEventListener('stalled', handleStalled);
     video.addEventListener('loadeddata', handleLoadedData);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('error', handleError);
 
     return () => {
+      if (bufferTimeout) clearTimeout(bufferTimeout);
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('canplaythrough', handleCanPlayThrough);
       video.removeEventListener('playing', handlePlaying);
       video.removeEventListener('stalled', handleStalled);
       video.removeEventListener('loadeddata', handleLoadedData);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('error', handleError);
     };
   }, [videoUrl]);
@@ -608,8 +638,6 @@ export default function PremiumDashboard() {
                   playsInline
                   preload="metadata"
                   controlsList="nodownload"
-                  webkit-playsinline="true"
-                  x-webkit-airplay="allow"
                 />
               </div>
               
