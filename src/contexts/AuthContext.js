@@ -59,6 +59,8 @@ export function AuthProvider({ children }) {
   async function signin(email, password) {
     try {
       const { user } = await signInWithEmailAndPassword(auth, email, password);
+      // Check subscription status after signin
+      await checkSubscriptionStatus(user.uid);
       return user;
     } catch (error) {
       throw error;
@@ -72,6 +74,42 @@ export function AuthProvider({ children }) {
       setUserDoc(null);
     } catch (error) {
       throw error;
+    }
+  }
+
+  // Check subscription status
+  async function checkSubscriptionStatus(userId) {
+    try {
+      const userDocRef = doc(db, 'Users', userId);
+      const userDocSnap = await getDoc(userDocRef);
+      
+      if (userDocSnap.exists()) {
+        const userData = userDocSnap.data();
+        
+        // Check if premium and if renewal date has passed
+        if (userData.isPremium && userData.renewDate) {
+          const renewDate = userData.renewDate.toDate();
+          const now = new Date();
+          
+          // If renewal date has passed, revoke premium access
+          if (renewDate < now) {
+            await updateDoc(userDocRef, {
+              isPremium: false,
+              subscriptionExpired: true,
+              expiredDate: now
+            });
+            
+            // Update local state
+            setUserDoc({
+              ...userData,
+              isPremium: false,
+              subscriptionExpired: true
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error checking subscription status:', error);
     }
   }
 
@@ -112,7 +150,29 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
-        await fetchUserDoc(user.uid);
+        const userData = await fetchUserDoc(user.uid);
+        
+        // Check subscription status on auth state change
+        if (userData && userData.isPremium && userData.renewDate) {
+          const renewDate = userData.renewDate.toDate();
+          const now = new Date();
+          
+          if (renewDate < now) {
+            // Subscription expired, update Firestore
+            const userRef = doc(db, 'Users', user.uid);
+            await updateDoc(userRef, {
+              isPremium: false,
+              subscriptionExpired: true,
+              expiredDate: now
+            });
+            
+            setUserDoc({
+              ...userData,
+              isPremium: false,
+              subscriptionExpired: true
+            });
+          }
+        }
       } else {
         setUserDoc(null);
       }
