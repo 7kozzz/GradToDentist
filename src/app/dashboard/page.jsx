@@ -49,22 +49,12 @@ export default function PremiumDashboard() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [isBuffering, setIsBuffering] = useState(false);
-  const [isSafari, setIsSafari] = useState(false);
   
   const videoRef = useRef(null);
   const containerRef = useRef(null);
-  const bufferTimeoutRef = useRef(null);
   
   const { currentUser, userDoc, logout } = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    // Detect Safari
-    const ua = navigator.userAgent.toLowerCase();
-    const safari = ua.indexOf('safari') > -1 && ua.indexOf('chrome') === -1;
-    setIsSafari(safari);
-    console.log('Browser is Safari:', safari);
-  }, []);
 
   useEffect(() => {
     if (!currentUser) {
@@ -112,69 +102,25 @@ export default function PremiumDashboard() {
     if (!video || !videoUrl) return;
 
     const handleWaiting = () => {
-      console.log('Video waiting/buffering');
       setIsBuffering(true);
-      
-      // Clear existing timeout
-      if (bufferTimeoutRef.current) {
-        clearTimeout(bufferTimeoutRef.current);
-      }
-      
-      // Set timeout to show error if buffering too long (Safari issue)
-      if (isSafari) {
-        bufferTimeoutRef.current = setTimeout(() => {
-          console.log('Safari buffering timeout - may need to reload');
-          setIsBuffering(false);
-        }, 15000); // 15 seconds timeout for Safari
-      }
     };
     
     const handleCanPlay = () => {
-      console.log('Video can play');
-      if (bufferTimeoutRef.current) {
-        clearTimeout(bufferTimeoutRef.current);
-      }
-      setIsBuffering(false);
-      setVideoLoading(false);
-    };
-    
-    const handleCanPlayThrough = () => {
-      console.log('Video can play through');
-      if (bufferTimeoutRef.current) {
-        clearTimeout(bufferTimeoutRef.current);
-      }
       setIsBuffering(false);
       setVideoLoading(false);
     };
     
     const handlePlaying = () => {
-      console.log('Video playing');
-      if (bufferTimeoutRef.current) {
-        clearTimeout(bufferTimeoutRef.current);
-      }
       setIsBuffering(false);
       setVideoLoading(false);
     };
 
+    const handleStalled = () => {
+      setIsBuffering(true);
+    };
+
     const handleLoadedData = () => {
-      console.log('Video data loaded');
       setVideoLoading(false);
-    };
-
-    const handleLoadedMetadata = () => {
-      console.log('Video metadata loaded');
-      setVideoLoading(false);
-    };
-
-    const handleProgress = () => {
-      if (video.buffered.length > 0) {
-        const bufferedEnd = video.buffered.end(video.buffered.length - 1);
-        const duration = video.duration;
-        if (duration > 0) {
-          const percentBuffered = (bufferedEnd / duration) * 100;
-          console.log('Buffered:', percentBuffered.toFixed(1) + '%');
-        }
-      }
     };
 
     const handleError = (e) => {
@@ -208,27 +154,20 @@ export default function PremiumDashboard() {
 
     video.addEventListener('waiting', handleWaiting);
     video.addEventListener('canplay', handleCanPlay);
-    video.addEventListener('canplaythrough', handleCanPlayThrough);
     video.addEventListener('playing', handlePlaying);
+    video.addEventListener('stalled', handleStalled);
     video.addEventListener('loadeddata', handleLoadedData);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('progress', handleProgress);
     video.addEventListener('error', handleError);
 
     return () => {
-      if (bufferTimeoutRef.current) {
-        clearTimeout(bufferTimeoutRef.current);
-      }
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('canplay', handleCanPlay);
-      video.removeEventListener('canplaythrough', handleCanPlayThrough);
       video.removeEventListener('playing', handlePlaying);
+      video.removeEventListener('stalled', handleStalled);
       video.removeEventListener('loadeddata', handleLoadedData);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('progress', handleProgress);
       video.removeEventListener('error', handleError);
     };
-  }, [videoUrl, isSafari]);
+  }, [videoUrl]);
 
   async function fetchCourses() {
     try {
@@ -258,85 +197,58 @@ export default function PremiumDashboard() {
     }
   }
 
- async function loadVideo(course) {
-  if (!course.url) {
-    setError('Video URL not found for this course');
-    console.error('Course missing URL:', course);
-    return;
-  }
-  
-  console.log('=== LOADING VIDEO ===');
-  console.log('Course title:', course.title);
-  console.log('Original URL:', course.url);
-  
-  setVideoLoading(true);
-  setCurrentCourse(course);
-  setIsPlaying(false);
-  setError('');
-  setIsBuffering(false);
-  
-  if (videoRef.current) {
-    videoRef.current.pause();
-    videoRef.current.removeAttribute('src');
-    videoRef.current.load();
-  }
-  
-  try {
-    let finalUrl = course.url;
-    
-    // Check if it's already a valid HTTP URL
-    if (course.url.startsWith('http://') || course.url.startsWith('https://')) {
-      console.log('Already a valid HTTP URL');
-      finalUrl = course.url;
-    }
-    // Handle gs:// format
-    else if (course.url.startsWith('gs://')) {
-      console.log('Converting gs:// URL');
-      const pathMatch = course.url.match(/gs:\/\/[^\/]+\/(.+)/);
-      if (pathMatch) {
-        const storagePath = pathMatch[1];
-        console.log('Storage path:', storagePath);
-        const videoStorageRef = ref(storage, storagePath);
-        finalUrl = await getDownloadURL(videoStorageRef);
-        console.log('Got download URL from gs://');
-      } else {
-        throw new Error('Invalid Firebase Storage gs:// path format');
-      }
-    }
-    // Treat as storage path
-    else {
-      console.log('Treating as storage path');
-      const videoStorageRef = ref(storage, course.url);
-      finalUrl = await getDownloadURL(videoStorageRef);
-      console.log('Got download URL from storage path');
+  async function loadVideo(course) {
+    if (!course.url) {
+      setError('Video URL not found for this course');
+      console.error('Course missing URL:', course);
+      return;
     }
     
-    console.log('Final URL obtained:', finalUrl ? 'YES' : 'NO');
-    console.log('URL length:', finalUrl?.length);
+    setVideoLoading(true);
+    setCurrentCourse(course);
+    setIsPlaying(false);
+    setError('');
+    setIsBuffering(false);
     
-    setVideoUrl('');
-    await new Promise(resolve => setTimeout(resolve, 200));
-    
-    setVideoUrl(finalUrl);
-    setCurrentTime(0);
-    
-    if (videoRef.current && isSafari) {
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.src = '';
       videoRef.current.load();
     }
     
-    loadComments(course.id);
-    
-    console.log('=== VIDEO LOADING COMPLETE ===');
-  } catch (error) {
-    console.error('=== ERROR LOADING VIDEO ===');
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
-    console.error('Course URL was:', course.url);
-    setError('Failed to load video: ' + error.message);
-    setVideoLoading(false);
+    try {
+      let finalUrl = course.url;
+      
+      if (course.url.startsWith('gs://')) {
+        const pathMatch = course.url.match(/gs:\/\/[^\/]+\/(.+)/);
+        if (pathMatch) {
+          const storagePath = pathMatch[1];
+          const videoStorageRef = ref(storage, storagePath);
+          finalUrl = await getDownloadURL(videoStorageRef);
+        } else {
+          throw new Error('Invalid Firebase Storage path format');
+        }
+      } else if (course.url.includes('firebasestorage.googleapis.com')) {
+        finalUrl = course.url;
+      } else if (!course.url.startsWith('http://') && !course.url.startsWith('https://')) {
+        const videoStorageRef = ref(storage, course.url);
+        finalUrl = await getDownloadURL(videoStorageRef);
+      }
+      
+      setVideoUrl('');
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      setVideoUrl(finalUrl);
+      setCurrentTime(0);
+      
+      loadComments(course.id);
+    } catch (error) {
+      console.error('Error loading video:', error);
+      setError('Failed to load video: ' + error.message);
+      setVideoLoading(false);
+    }
   }
-}
-
 
   function loadComments(courseId) {
     if (!courseId) return;
@@ -437,8 +349,28 @@ export default function PremiumDashboard() {
     if (!videoRef.current) return;
     const seekTime = parseFloat(e.target.value);
     
+    const wasPlaying = !videoRef.current.paused;
+    videoRef.current.pause();
+    
     videoRef.current.currentTime = seekTime;
     setCurrentTime(seekTime);
+    setIsBuffering(true);
+    
+    if (wasPlaying) {
+      setTimeout(() => {
+        if (videoRef.current) {
+          const playPromise = videoRef.current.play();
+          if (playPromise !== undefined) {
+            playPromise.catch(err => {
+              console.error('Error resuming playback:', err);
+              setIsBuffering(false);
+            });
+          }
+        }
+      }, 300);
+    } else {
+      setIsBuffering(false);
+    }
   }
 
   function handleVolumeChange(e) {
@@ -446,6 +378,13 @@ export default function PremiumDashboard() {
     setVolume(newVolume);
     if (videoRef.current) {
       videoRef.current.volume = newVolume;
+    }
+  }
+
+  function handlePlaybackRateChange(rate) {
+    setPlaybackRate(rate);
+    if (videoRef.current) {
+      videoRef.current.playbackRate = rate;
     }
   }
 
@@ -644,10 +583,7 @@ export default function PremiumDashboard() {
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#e4b8ae] mx-auto mb-4"></div>
-                <p className="text-white">Loading video...</p>
-                {isSafari && (
-                  <p className="text-gray-400 text-sm mt-2">Safari may take longer to load</p>
-                )}
+                <p className="text-white">Buffering...</p>
               </div>
             </div>
           )}
@@ -667,10 +603,13 @@ export default function PremiumDashboard() {
                   onPlay={() => setIsPlaying(true)}
                   onPause={() => setIsPlaying(false)}
                   onEnded={() => setIsPlaying(false)}
+                  onSeeking={() => setIsBuffering(true)}
+                  onSeeked={() => setIsBuffering(false)}
                   playsInline
-                  preload="auto"
+                  preload="metadata"
                   controlsList="nodownload"
-                  crossOrigin="anonymous"
+                  webkit-playsinline="true"
+                  x-webkit-airplay="allow"
                 />
               </div>
               
