@@ -11,7 +11,7 @@ import Link from 'next/link'
 export default function Payment() {
   const [loading, setLoading] = useState(false)
   const [processingPayment, setProcessingPayment] = useState(false)
-  const { currentUser, userDoc } = useAuth()
+  const { currentUser, userDoc, fetchUserDoc } = useAuth()
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -33,10 +33,8 @@ export default function Payment() {
   }, [currentUser, userDoc, router, searchParams])
 
   async function checkPaymentStatus() {
-    // Log all parameters to see what PayTabs actually sends
     console.log('All URL parameters:', Array.from(searchParams.entries()))
     
-    // Check for success parameter
     const success = searchParams.get('success')
     const tranRef = searchParams.get('tranRef')
     const cartId = searchParams.get('cartId')
@@ -45,7 +43,6 @@ export default function Payment() {
     console.log('Transaction ref:', tranRef)
     console.log('Cart ID:', cartId)
     
-    // Check if payment was successful
     if (success === 'true' && currentUser) {
       setProcessingPayment(true)
       try {
@@ -61,6 +58,9 @@ export default function Payment() {
           cartId: cartId || null,
           paymentCompleted: true
         })
+
+        // Refresh user document to get updated data
+        await fetchUserDoc(currentUser.uid)
 
         setTimeout(() => {
           router.push('/dashboard')
