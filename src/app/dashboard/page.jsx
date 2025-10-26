@@ -258,69 +258,85 @@ export default function PremiumDashboard() {
     }
   }
 
-  async function loadVideo(course) {
-    if (!course.url) {
-      setError('Video URL not found for this course');
-      console.error('Course missing URL:', course);
-      return;
+ async function loadVideo(course) {
+  if (!course.url) {
+    setError('Video URL not found for this course');
+    console.error('Course missing URL:', course);
+    return;
+  }
+  
+  console.log('=== LOADING VIDEO ===');
+  console.log('Course title:', course.title);
+  console.log('Original URL:', course.url);
+  
+  setVideoLoading(true);
+  setCurrentCourse(course);
+  setIsPlaying(false);
+  setError('');
+  setIsBuffering(false);
+  
+  if (videoRef.current) {
+    videoRef.current.pause();
+    videoRef.current.removeAttribute('src');
+    videoRef.current.load();
+  }
+  
+  try {
+    let finalUrl = course.url;
+    
+    // Check if it's already a valid HTTP URL
+    if (course.url.startsWith('http://') || course.url.startsWith('https://')) {
+      console.log('Already a valid HTTP URL');
+      finalUrl = course.url;
+    }
+    // Handle gs:// format
+    else if (course.url.startsWith('gs://')) {
+      console.log('Converting gs:// URL');
+      const pathMatch = course.url.match(/gs:\/\/[^\/]+\/(.+)/);
+      if (pathMatch) {
+        const storagePath = pathMatch[1];
+        console.log('Storage path:', storagePath);
+        const videoStorageRef = ref(storage, storagePath);
+        finalUrl = await getDownloadURL(videoStorageRef);
+        console.log('Got download URL from gs://');
+      } else {
+        throw new Error('Invalid Firebase Storage gs:// path format');
+      }
+    }
+    // Treat as storage path
+    else {
+      console.log('Treating as storage path');
+      const videoStorageRef = ref(storage, course.url);
+      finalUrl = await getDownloadURL(videoStorageRef);
+      console.log('Got download URL from storage path');
     }
     
-    console.log('Loading video for course:', course.title);
-    setVideoLoading(true);
-    setCurrentCourse(course);
-    setIsPlaying(false);
-    setError('');
-    setIsBuffering(false);
+    console.log('Final URL obtained:', finalUrl ? 'YES' : 'NO');
+    console.log('URL length:', finalUrl?.length);
     
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.removeAttribute('src');
+    setVideoUrl('');
+    await new Promise(resolve => setTimeout(resolve, 200));
+    
+    setVideoUrl(finalUrl);
+    setCurrentTime(0);
+    
+    if (videoRef.current && isSafari) {
       videoRef.current.load();
     }
     
-    try {
-      let finalUrl = course.url;
-      
-      if (course.url.startsWith('gs://')) {
-        const pathMatch = course.url.match(/gs:\/\/[^\/]+\/(.+)/);
-        if (pathMatch) {
-          const storagePath = pathMatch[1];
-          const videoStorageRef = ref(storage, storagePath);
-          finalUrl = await getDownloadURL(videoStorageRef);
-        } else {
-          throw new Error('Invalid Firebase Storage path format');
-        }
-      } else if (course.url.includes('firebasestorage.googleapis.com')) {
-        finalUrl = course.url;
-      } else if (!course.url.startsWith('http://') && !course.url.startsWith('https://')) {
-        const videoStorageRef = ref(storage, course.url);
-        finalUrl = await getDownloadURL(videoStorageRef);
-      }
-      
-      // Add token parameter to URL to force Safari to treat it as a different resource
-      const urlWithTimestamp = `${finalUrl}${finalUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
-      
-      console.log('Final video URL:', isSafari ? 'Safari mode' : 'Standard mode');
-      
-      setVideoUrl('');
-      
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      setVideoUrl(urlWithTimestamp);
-      setCurrentTime(0);
-      
-      // For Safari, try to preload more aggressively
-      if (videoRef.current && isSafari) {
-        videoRef.current.load();
-      }
-      
-      loadComments(course.id);
-    } catch (error) {
-      console.error('Error loading video:', error);
-      setError('Failed to load video: ' + error.message);
-      setVideoLoading(false);
-    }
+    loadComments(course.id);
+    
+    console.log('=== VIDEO LOADING COMPLETE ===');
+  } catch (error) {
+    console.error('=== ERROR LOADING VIDEO ===');
+    console.error('Error message:', error.message);
+    console.error('Error stack:', error.stack);
+    console.error('Course URL was:', course.url);
+    setError('Failed to load video: ' + error.message);
+    setVideoLoading(false);
   }
+}
+
 
   function loadComments(courseId) {
     if (!courseId) return;
