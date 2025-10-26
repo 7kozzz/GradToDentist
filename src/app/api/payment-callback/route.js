@@ -22,17 +22,17 @@ export async function POST(request) {
       redirectUrl.searchParams.set('tranRef', tranRef)
       redirectUrl.searchParams.set('cartId', cartId)
       
-      return NextResponse.redirect(redirectUrl)
+      return NextResponse.redirect(redirectUrl, 303)
     } else {
       const redirectUrl = new URL('/payment', request.url)
       redirectUrl.searchParams.set('success', 'false')
       redirectUrl.searchParams.set('message', respMessage)
       
-      return NextResponse.redirect(redirectUrl)
+      return NextResponse.redirect(redirectUrl, 303)
     }
   } catch (error) {
     console.error('Payment callback error:', error)
-    return NextResponse.redirect(new URL('/payment?error=true', request.url))
+    return NextResponse.redirect(new URL('/payment?error=true', request.url), 303)
   }
 }
 
@@ -46,8 +46,8 @@ export async function GET(request) {
     redirectUrl.searchParams.set('success', 'true')
     redirectUrl.searchParams.set('tranRef', tranRef)
     
-    return NextResponse.redirect(redirectUrl)
+    return NextResponse.redirect(redirectUrl, 303)
   }
   
-  return NextResponse.redirect(new URL('/payment', request.url))
+  return NextResponse.redirect(new URL('/payment', request.url), 303)
 }
