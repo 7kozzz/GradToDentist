@@ -49,12 +49,22 @@ export default function PremiumDashboard() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
   const [isBuffering, setIsBuffering] = useState(false);
+  const [isSafari, setIsSafari] = useState(false);
   
   const videoRef = useRef(null);
   const containerRef = useRef(null);
+  const bufferTimeoutRef = useRef(null);
   
   const { currentUser, userDoc, logout } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    // Detect Safari
+    const ua = navigator.userAgent.toLowerCase();
+    const safari = ua.indexOf('safari') > -1 && ua.indexOf('chrome') === -1;
+    setIsSafari(safari);
+    console.log('Browser is Safari:', safari);
+  }, []);
 
   useEffect(() => {
     if (!currentUser) {
@@ -102,25 +112,69 @@ export default function PremiumDashboard() {
     if (!video || !videoUrl) return;
 
     const handleWaiting = () => {
+      console.log('Video waiting/buffering');
       setIsBuffering(true);
+      
+      // Clear existing timeout
+      if (bufferTimeoutRef.current) {
+        clearTimeout(bufferTimeoutRef.current);
+      }
+      
+      // Set timeout to show error if buffering too long (Safari issue)
+      if (isSafari) {
+        bufferTimeoutRef.current = setTimeout(() => {
+          console.log('Safari buffering timeout - may need to reload');
+          setIsBuffering(false);
+        }, 15000); // 15 seconds timeout for Safari
+      }
     };
     
     const handleCanPlay = () => {
+      console.log('Video can play');
+      if (bufferTimeoutRef.current) {
+        clearTimeout(bufferTimeoutRef.current);
+      }
+      setIsBuffering(false);
+      setVideoLoading(false);
+    };
+    
+    const handleCanPlayThrough = () => {
+      console.log('Video can play through');
+      if (bufferTimeoutRef.current) {
+        clearTimeout(bufferTimeoutRef.current);
+      }
       setIsBuffering(false);
       setVideoLoading(false);
     };
     
     const handlePlaying = () => {
+      console.log('Video playing');
+      if (bufferTimeoutRef.current) {
+        clearTimeout(bufferTimeoutRef.current);
+      }
       setIsBuffering(false);
       setVideoLoading(false);
     };
 
-    const handleStalled = () => {
-      setIsBuffering(true);
+    const handleLoadedData = () => {
+      console.log('Video data loaded');
+      setVideoLoading(false);
     };
 
-    const handleLoadedData = () => {
+    const handleLoadedMetadata = () => {
+      console.log('Video metadata loaded');
       setVideoLoading(false);
+    };
+
+    const handleProgress = () => {
+      if (video.buffered.length > 0) {
+        const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+        const duration = video.duration;
+        if (duration > 0) {
+          const percentBuffered = (bufferedEnd / duration) * 100;
+          console.log('Buffered:', percentBuffered.toFixed(1) + '%');
+        }
+      }
     };
 
     const handleError = (e) => {
@@ -154,20 +208,27 @@ export default function PremiumDashboard() {
 
     video.addEventListener('waiting', handleWaiting);
     video.addEventListener('canplay', handleCanPlay);
+    video.addEventListener('canplaythrough', handleCanPlayThrough);
     video.addEventListener('playing', handlePlaying);
-    video.addEventListener('stalled', handleStalled);
     video.addEventListener('loadeddata', handleLoadedData);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('progress', handleProgress);
     video.addEventListener('error', handleError);
 
     return () => {
+      if (bufferTimeoutRef.current) {
+        clearTimeout(bufferTimeoutRef.current);
+      }
       video.removeEventListener('waiting', handleWaiting);
       video.removeEventListener('canplay', handleCanPlay);
+      video.removeEventListener('canplaythrough', handleCanPlayThrough);
       video.removeEventListener('playing', handlePlaying);
-      video.removeEventListener('stalled', handleStalled);
       video.removeEventListener('loadeddata', handleLoadedData);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('progress', handleProgress);
       video.removeEventListener('error', handleError);
     };
-  }, [videoUrl]);
+  }, [videoUrl, isSafari]);
 
   async function fetchCourses() {
     try {
@@ -204,6 +265,7 @@ export default function PremiumDashboard() {
       return;
     }
     
+    console.log('Loading video for course:', course.title);
     setVideoLoading(true);
     setCurrentCourse(course);
     setIsPlaying(false);
@@ -212,7 +274,7 @@ export default function PremiumDashboard() {
     
     if (videoRef.current) {
       videoRef.current.pause();
-      videoRef.current.src = '';
+      videoRef.current.removeAttribute('src');
       videoRef.current.load();
     }
     
@@ -235,12 +297,22 @@ export default function PremiumDashboard() {
         finalUrl = await getDownloadURL(videoStorageRef);
       }
       
+      // Add token parameter to URL to force Safari to treat it as a different resource
+      const urlWithTimestamp = `${finalUrl}${finalUrl.includes('?') ? '&' : '?'}t=${Date.now()}`;
+      
+      console.log('Final video URL:', isSafari ? 'Safari mode' : 'Standard mode');
+      
       setVideoUrl('');
       
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 200));
       
-      setVideoUrl(finalUrl);
+      setVideoUrl(urlWithTimestamp);
       setCurrentTime(0);
+      
+      // For Safari, try to preload more aggressively
+      if (videoRef.current && isSafari) {
+        videoRef.current.load();
+      }
       
       loadComments(course.id);
     } catch (error) {
@@ -349,28 +421,8 @@ export default function PremiumDashboard() {
     if (!videoRef.current) return;
     const seekTime = parseFloat(e.target.value);
     
-    const wasPlaying = !videoRef.current.paused;
-    videoRef.current.pause();
-    
     videoRef.current.currentTime = seekTime;
     setCurrentTime(seekTime);
-    setIsBuffering(true);
-    
-    if (wasPlaying) {
-      setTimeout(() => {
-        if (videoRef.current) {
-          const playPromise = videoRef.current.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(err => {
-              console.error('Error resuming playback:', err);
-              setIsBuffering(false);
-            });
-          }
-        }
-      }, 300);
-    } else {
-      setIsBuffering(false);
-    }
   }
 
   function handleVolumeChange(e) {
@@ -378,13 +430,6 @@ export default function PremiumDashboard() {
     setVolume(newVolume);
     if (videoRef.current) {
       videoRef.current.volume = newVolume;
-    }
-  }
-
-  function handlePlaybackRateChange(rate) {
-    setPlaybackRate(rate);
-    if (videoRef.current) {
-      videoRef.current.playbackRate = rate;
     }
   }
 
@@ -583,7 +628,10 @@ export default function PremiumDashboard() {
             <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#e4b8ae] mx-auto mb-4"></div>
-                <p className="text-white">Buffering...</p>
+                <p className="text-white">Loading video...</p>
+                {isSafari && (
+                  <p className="text-gray-400 text-sm mt-2">Safari may take longer to load</p>
+                )}
               </div>
             </div>
           )}
@@ -603,13 +651,10 @@ export default function PremiumDashboard() {
                   onPlay={() => setIsPlaying(true)}
                   onPause={() => setIsPlaying(false)}
                   onEnded={() => setIsPlaying(false)}
-                  onSeeking={() => setIsBuffering(true)}
-                  onSeeked={() => setIsBuffering(false)}
                   playsInline
-                  preload="metadata"
+                  preload="auto"
                   controlsList="nodownload"
-                  webkit-playsinline="true"
-                  x-webkit-airplay="allow"
+                  crossOrigin="anonymous"
                 />
               </div>
               
