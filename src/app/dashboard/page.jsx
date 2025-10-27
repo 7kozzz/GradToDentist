@@ -97,107 +97,130 @@ export default function PremiumDashboard() {
     return diffDays;
   }
 
+  
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video || !videoUrl) return;
+  const video = videoRef.current;
+  if (!video || !videoUrl) return;
 
-    let bufferTimeout = null;
+  let bufferTimeout = null;
+  let isActuallyBuffering = false;
 
-    const handleWaiting = () => {
-      console.log('Video waiting');
-      bufferTimeout = setTimeout(() => {
+  const handleWaiting = () => {
+    console.log('Video waiting');
+    bufferTimeout = setTimeout(() => {
+      if (video.readyState < video.HAVE_FUTURE_DATA) {
+        isActuallyBuffering = true;
         setIsBuffering(true);
-      }, 500);
-    };
-    
-    const handleCanPlay = () => {
-      console.log('Video can play');
-      if (bufferTimeout) clearTimeout(bufferTimeout);
-      setIsBuffering(false);
-      setVideoLoading(false);
-    };
-    
-    const handleCanPlayThrough = () => {
-      console.log('Video can play through');
-      if (bufferTimeout) clearTimeout(bufferTimeout);
-      setIsBuffering(false);
-      setVideoLoading(false);
-    };
-    
-    const handlePlaying = () => {
-      console.log('Video playing');
-      if (bufferTimeout) clearTimeout(bufferTimeout);
-      setIsBuffering(false);
-      setVideoLoading(false);
-    };
-
-    const handleStalled = () => {
-      console.log('Video stalled');
-      setIsBuffering(true);
-    };
-
-    const handleLoadedData = () => {
-      console.log('Video data loaded');
-      if (bufferTimeout) clearTimeout(bufferTimeout);
-      setVideoLoading(false);
-      setIsBuffering(false);
-    };
-
-    const handleLoadedMetadata = () => {
-      console.log('Video metadata loaded');
-      setVideoLoading(false);
-    };
-
-    const handleError = (e) => {
-      console.error('Video error:', e);
-      console.error('Video error details:', video.error);
-      let errorMsg = 'Video playback error. ';
-      
-      if (video.error) {
-        switch(video.error.code) {
-          case 1:
-            errorMsg += 'Video loading aborted.';
-            break;
-          case 2:
-            errorMsg += 'Network error occurred.';
-            break;
-          case 3:
-            errorMsg += 'Video format not supported.';
-            break;
-          case 4:
-            errorMsg += 'Video source not found.';
-            break;
-          default:
-            errorMsg += 'Unknown error occurred.';
-        }
       }
-      
-      setError(errorMsg);
-      setIsBuffering(false);
-      setVideoLoading(false);
-    };
+    }, 2000);
+  };
+  
+  const handleCanPlay = () => {
+    console.log('Video can play');
+    if (bufferTimeout) clearTimeout(bufferTimeout);
+    isActuallyBuffering = false;
+    setIsBuffering(false);
+    setVideoLoading(false);
+  };
+  
+  const handleCanPlayThrough = () => {
+    console.log('Video can play through');
+    if (bufferTimeout) clearTimeout(bufferTimeout);
+    isActuallyBuffering = false;
+    setIsBuffering(false);
+    setVideoLoading(false);
+  };
+  
+  const handlePlaying = () => {
+    console.log('Video playing');
+    if (bufferTimeout) clearTimeout(bufferTimeout);
+    isActuallyBuffering = false;
+    setIsBuffering(false);
+    setVideoLoading(false);
+  };
 
-    video.addEventListener('waiting', handleWaiting);
-    video.addEventListener('canplay', handleCanPlay);
-    video.addEventListener('canplaythrough', handleCanPlayThrough);
-    video.addEventListener('playing', handlePlaying);
-    video.addEventListener('stalled', handleStalled);
-    video.addEventListener('loadeddata', handleLoadedData);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
-    video.addEventListener('error', handleError);
-
-    return () => {
+  const handleProgress = () => {
+    if (isActuallyBuffering && video.readyState >= video.HAVE_FUTURE_DATA) {
       if (bufferTimeout) clearTimeout(bufferTimeout);
-      video.removeEventListener('waiting', handleWaiting);
-      video.removeEventListener('canplay', handleCanPlay);
-      video.removeEventListener('canplaythrough', handleCanPlayThrough);
-      video.removeEventListener('playing', handlePlaying);
-      video.removeEventListener('stalled', handleStalled);
-      video.removeEventListener('loadeddata', handleLoadedData);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-      video.removeEventListener('error', handleError);
-    };
-  }, [videoUrl]);
+      isActuallyBuffering = false;
+      setIsBuffering(false);
+    }
+  };
+
+  const handleStalled = () => {
+    console.log('Video stalled');
+    if (!video.paused && video.readyState < video.HAVE_FUTURE_DATA) {
+      setIsBuffering(true);
+      isActuallyBuffering = true;
+    }
+  };
+
+  const handleLoadedData = () => {
+    console.log('Video data loaded');
+    if (bufferTimeout) clearTimeout(bufferTimeout);
+    isActuallyBuffering = false;
+    setVideoLoading(false);
+    setIsBuffering(false);
+  };
+
+  const handleLoadedMetadata = () => {
+    console.log('Video metadata loaded');
+    setVideoLoading(false);
+  };
+
+  const handleError = (e) => {
+    console.error('Video error:', e);
+    console.error('Video error details:', video.error);
+    let errorMsg = 'Video playback error. ';
+    
+    if (video.error) {
+      switch(video.error.code) {
+        case 1:
+          errorMsg += 'Video loading aborted.';
+          break;
+        case 2:
+          errorMsg += 'Network error occurred.';
+          break;
+        case 3:
+          errorMsg += 'Video format not supported.';
+          break;
+        case 4:
+          errorMsg += 'Video source not found.';
+          break;
+        default:
+          errorMsg += 'Unknown error occurred.';
+      }
+    }
+    
+    setError(errorMsg);
+    setIsBuffering(false);
+    setVideoLoading(false);
+  };
+
+  video.addEventListener('waiting', handleWaiting);
+  video.addEventListener('canplay', handleCanPlay);
+  video.addEventListener('canplaythrough', handleCanPlayThrough);
+  video.addEventListener('playing', handlePlaying);
+  video.addEventListener('progress', handleProgress);
+  video.addEventListener('stalled', handleStalled);
+  video.addEventListener('loadeddata', handleLoadedData);
+  video.addEventListener('loadedmetadata', handleLoadedMetadata);
+  video.addEventListener('error', handleError);
+
+  return () => {
+    if (bufferTimeout) clearTimeout(bufferTimeout);
+    video.removeEventListener('waiting', handleWaiting);
+    video.removeEventListener('canplay', handleCanPlay);
+    video.removeEventListener('canplaythrough', handleCanPlayThrough);
+    video.removeEventListener('playing', handlePlaying);
+    video.removeEventListener('progress', handleProgress);
+    video.removeEventListener('stalled', handleStalled);
+    video.removeEventListener('loadeddata', handleLoadedData);
+    video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    video.removeEventListener('error', handleError);
+  };
+}, [videoUrl]);
+
 
   async function fetchCourses() {
     try {
