@@ -459,23 +459,33 @@ export default function PremiumDashboard() {
   }
 
   function toggleFullscreen() {
-    if (!containerRef.current) return;
+    // For mobile devices, try to fullscreen the video element directly
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const elementToFullscreen = isMobile && videoRef.current ? videoRef.current : containerRef.current;
+    
+    if (!elementToFullscreen) return;
     
     if (!isFullscreen) {
-      if (containerRef.current.requestFullscreen) {
-        containerRef.current.requestFullscreen();
-      } else if (containerRef.current.webkitRequestFullscreen) {
-        containerRef.current.webkitRequestFullscreen();
-      } else if (containerRef.current.mozRequestFullScreen) {
-        containerRef.current.mozRequestFullScreen();
-      } else if (containerRef.current.msRequestFullscreen) {
-        containerRef.current.msRequestFullscreen();
+      // Try different fullscreen methods based on browser support
+      if (elementToFullscreen.requestFullscreen) {
+        elementToFullscreen.requestFullscreen();
+      } else if (elementToFullscreen.webkitRequestFullscreen) {
+        elementToFullscreen.webkitRequestFullscreen();
+      } else if (elementToFullscreen.webkitEnterFullscreen) {
+        // iOS specific for video elements
+        elementToFullscreen.webkitEnterFullscreen();
+      } else if (elementToFullscreen.mozRequestFullScreen) {
+        elementToFullscreen.mozRequestFullScreen();
+      } else if (elementToFullscreen.msRequestFullscreen) {
+        elementToFullscreen.msRequestFullscreen();
       }
     } else {
       if (document.exitFullscreen) {
         document.exitFullscreen();
       } else if (document.webkitExitFullscreen) {
         document.webkitExitFullscreen();
+      } else if (document.webkitCancelFullScreen) {
+        document.webkitCancelFullScreen();
       } else if (document.mozCancelFullScreen) {
         document.mozCancelFullScreen();
       } else if (document.msExitFullscreen) {
@@ -661,6 +671,7 @@ export default function PremiumDashboard() {
                   playsInline
                   preload="metadata"
                   controlsList="nodownload"
+                  webkitPlaysinline
                 />
               </div>
               
@@ -747,9 +758,9 @@ export default function PremiumDashboard() {
                       e.stopPropagation();
                       toggleFullscreen();
                     }}
-                    className="p-1 md:p-2 hover:bg-white/20 rounded-full transition-colors hidden md:block"
+                    className="p-1 md:p-2 hover:bg-white/20 rounded-full transition-colors"
                   >
-                    {isFullscreen ? <Minimize className="w-6 h-6" /> : <Maximize className="w-6 h-6" />}
+                    {isFullscreen ? <Minimize className="w-4 md:w-6 h-4 md:h-6" /> : <Maximize className="w-4 md:w-6 h-4 md:h-6" />}
                   </button>
                 </div>
               </div>
