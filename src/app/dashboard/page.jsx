@@ -651,56 +651,77 @@ export default function PremiumDashboard() {
             </div>
           )}
           
-          {currentCourse && videoUrl && !error ? (
-            <>
-              <div 
-                className="relative w-full h-full cursor-pointer"
-                onClick={handlePlayPause}
-              >
-                <video
-                  ref={videoRef}
-                  src={videoUrl}
-                  className="w-full h-full object-contain"
-                  onLoadedMetadata={handleTimeUpdate}
-                  onTimeUpdate={handleTimeUpdate}
-                  onPlay={() => setIsPlaying(true)}
-                  onPause={() => setIsPlaying(false)}
-                  onEnded={() => setIsPlaying(false)}
-                  onSeeking={() => setIsBuffering(true)}
-                  onSeeked={() => setIsBuffering(false)}
-                  playsInline
-                  preload="metadata"
-                  controlsList="nodownload"
-                  webkitPlaysinline
+          {/* Video element - always present but hidden when no video */}
+          <div 
+            className="relative w-full h-full cursor-pointer"
+            onClick={videoUrl ? handlePlayPause : undefined}
+          >
+            <video
+              ref={videoRef}
+              src={videoUrl || ''}
+              className={`w-full h-full object-contain ${!videoUrl ? 'hidden' : ''}`}
+              onLoadedMetadata={handleTimeUpdate}
+              onTimeUpdate={handleTimeUpdate}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onEnded={() => setIsPlaying(false)}
+              onSeeking={() => setIsBuffering(true)}
+              onSeeked={() => setIsBuffering(false)}
+              playsInline
+              preload="metadata"
+              controlsList="nodownload"
+              webkitPlaysinline
+            />
+            
+            {/* Show placeholder when no video */}
+            {!videoUrl && !videoLoading && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <p className="text-gray-400 text-sm md:text-base">Select a course from the sidebar to start watching</p>
+              </div>
+            )}
+            
+            {videoLoading && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 md:h-12 w-8 md:w-12 border-b-2 border-[#e4b8ae] mx-auto mb-4"></div>
+                <p className="text-white text-sm md:text-base">Loading video...</p>
+              </div>
+            )}
+          </div>
+          
+          {/* Watermark - show only when video is loaded */}
+          {videoUrl && (
+            <div className="absolute top-4 right-4 text-white text-opacity-20 text-sm pointer-events-none select-none">
+              {userDoc?.email}
+            </div>
+          )}
+          
+          {/* Controls - always visible */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-2 md:p-4 pointer-events-auto">
+            {videoUrl && (
+              <div className="mb-2 md:mb-4">
+                <input
+                  type="range"
+                  min={0}
+                  max={duration || 0}
+                  value={currentTime}
+                  onChange={handleSeek}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                  style={{
+                    background: `linear-gradient(to right, #e4b8ae ${(currentTime / duration) * 100 || 0}%, #4b5563 ${(currentTime / duration) * 100 || 0}%)`
+                  }}
                 />
-              </div>
-              
-              <div className="absolute top-4 right-4 text-white text-opacity-20 text-sm pointer-events-none select-none">
-                {userDoc?.email}
-              </div>
-              
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-2 md:p-4 pointer-events-auto">
-                <div className="mb-2 md:mb-4">
-                  <input
-                    type="range"
-                    min={0}
-                    max={duration || 0}
-                    value={currentTime}
-                    onChange={handleSeek}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-full h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                    style={{
-                      background: `linear-gradient(to right, #e4b8ae ${(currentTime / duration) * 100 || 0}%, #4b5563 ${(currentTime / duration) * 100 || 0}%)`
-                    }}
-                  />
-                  <div className="flex justify-between text-white text-xs md:text-sm mt-1">
-                    <span>{formatTime(currentTime)}</span>
-                    <span>{formatTime(duration)}</span>
-                  </div>
+                <div className="flex justify-between text-white text-xs md:text-sm mt-1">
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration)}</span>
                 </div>
-                
-                <div className="flex items-center justify-between text-white">
-                  <div className="flex items-center gap-2 md:gap-4">
+              </div>
+            )}
+            
+            <div className="flex items-center justify-between text-white">
+              <div className="flex items-center gap-2 md:gap-4">
+                {videoUrl && (
+                  <>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -751,34 +772,22 @@ export default function PremiumDashboard() {
                       onClick={(e) => e.stopPropagation()}
                       className="w-12 md:w-20 hidden md:block"
                     />
-                  </div>
-                  
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleFullscreen();
-                    }}
-                    className="p-1 md:p-2 hover:bg-white/20 rounded-full transition-colors"
-                  >
-                    {isFullscreen ? <Minimize className="w-4 md:w-6 h-4 md:h-6" /> : <Maximize className="w-4 md:w-6 h-4 md:h-6" />}
-                  </button>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-center p-4">
-                {videoLoading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-8 md:h-12 w-8 md:w-12 border-b-2 border-[#e4b8ae] mx-auto mb-4"></div>
-                    <p className="text-white text-sm md:text-base">Loading video...</p>
                   </>
-                ) : (
-                  <p className="text-gray-400 text-sm md:text-base">Select a course from the sidebar to start watching</p>
                 )}
               </div>
+              
+              {/* Fullscreen button - always visible */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleFullscreen();
+                }}
+                className="p-1 md:p-2 hover:bg-white/20 rounded-full transition-colors"
+              >
+                {isFullscreen ? <Minimize className="w-4 md:w-6 h-4 md:h-6" /> : <Maximize className="w-4 md:w-6 h-4 md:h-6" />}
+              </button>
             </div>
-          )}
+          </div>
         </div>
 
         {currentCourse && (
