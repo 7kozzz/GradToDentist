@@ -76,7 +76,7 @@ export default function Payment() {
 
   function handlePayment() {
     setLoading(true)
-    window.location.href = 'https://secure.clickpay.com.sa/payment/link/47313/393283'
+    window.location.href = 'https://secure.clickpay.com.sa/payment/link/48173/398685'
   }
 
   if (processingPayment) {
