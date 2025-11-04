@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, DollarSign, Crown, Users, Mail, Calendar, Check, X, TrendingUp } from 'lucide-react';
-import { auth, db } from '@/lib/firebase';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import { auth, db } from '../../lib/firebase';
 
 export default function AdminPanel() {
   const [users, setUsers] = useState([]);
@@ -20,7 +20,7 @@ export default function AdminPanel() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUserEmail(user.email);
-        const adminCheck = user.email === 'omarhakeem@bytelyft.io';
+        const adminCheck = user.email === 'mahaalsehli@hotmail.com';
         setIsAdmin(adminCheck);
         
         if (adminCheck) {
@@ -78,9 +78,23 @@ export default function AdminPanel() {
     try {
       setUpdating(userId);
       const userRef = doc(db, 'Users', userId);
-      await updateDoc(userRef, {
-        isPremium: !currentStatus
-      });
+      
+      if (!currentStatus) {
+        // Granting premium - add renewDate 3 months from today
+        const today = new Date();
+        const renewDate = new Date(today);
+        renewDate.setMonth(renewDate.getMonth() + 3);
+        
+        await updateDoc(userRef, {
+          isPremium: true,
+          renewDate: renewDate
+        });
+      } else {
+        // Removing premium - just set isPremium to false
+        await updateDoc(userRef, {
+          isPremium: false
+        });
+      }
       
       await fetchUsers();
       setUpdating(null);
@@ -336,7 +350,13 @@ export default function AdminPanel() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                       <div className="flex items-center">
                         <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                        {user.joinedAt || 'N/A'}
+                        {user.joinedAt ? (
+                          typeof user.joinedAt === 'string' 
+                            ? user.joinedAt 
+                            : user.joinedAt.toDate 
+                              ? new Date(user.joinedAt.toDate()).toLocaleDateString() 
+                              : new Date(user.joinedAt).toLocaleDateString()
+                        ) : 'N/A'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
