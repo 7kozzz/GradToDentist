@@ -32,7 +32,6 @@ export default function PremiumDashboard() {
   const [currentCourse, setCurrentCourse] = useState(null);
   const [videoUrl, setVideoUrl] = useState('');
   const [loading, setLoading] = useState(true);
-  const [videoLoading, setVideoLoading] = useState(false);
   const [error, setError] = useState('');
   const [playbackRate, setPlaybackRate] = useState(1);
   
@@ -125,24 +124,11 @@ export default function PremiumDashboard() {
       }
       
       setError(errorMsg);
-      setVideoLoading(false);
     };
 
-    const handleLoadedData = () => {
-      setVideoLoading(false);
-    };
-
-    const handleLoadedMetadata = () => {
-      setVideoLoading(false);
-    };
-
-    video.addEventListener('loadeddata', handleLoadedData);
-    video.addEventListener('loadedmetadata', handleLoadedMetadata);
     video.addEventListener('error', handleError);
 
     return () => {
-      video.removeEventListener('loadeddata', handleLoadedData);
-      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('error', handleError);
     };
   }, [videoUrl]);
@@ -182,7 +168,6 @@ export default function PremiumDashboard() {
       return;
     }
     
-    setVideoLoading(true);
     setCurrentCourse(course);
     setIsPlaying(false);
     setError('');
@@ -223,7 +208,6 @@ export default function PremiumDashboard() {
     } catch (error) {
       console.error('Error loading video:', error);
       setError('Failed to load video: ' + error.message);
-      setVideoLoading(false);
     }
   }
 
@@ -561,16 +545,9 @@ export default function PremiumDashboard() {
               webkitPlaysinline
             />
             
-            {!videoUrl && !videoLoading && (
+            {!videoUrl && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <p className="text-gray-400 text-sm md:text-base">Select a course from the sidebar to start watching</p>
-              </div>
-            )}
-            
-            {videoLoading && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 md:h-12 w-8 md:w-12 border-b-2 border-[#e4b8ae] mx-auto mb-4"></div>
-                <p className="text-white text-sm md:text-base">Loading video...</p>
               </div>
             )}
           </div>
