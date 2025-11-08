@@ -48,7 +48,6 @@ export default function PremiumDashboard() {
   const [isMuted, setIsMuted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
-  const [isBuffering, setIsBuffering] = useState(false);
   
   const videoRef = useRef(null);
   const containerRef = useRef(null);
@@ -97,130 +96,56 @@ export default function PremiumDashboard() {
     return diffDays;
   }
 
-  
   useEffect(() => {
-  const video = videoRef.current;
-  if (!video || !videoUrl) return;
+    const video = videoRef.current;
+    if (!video || !videoUrl) return;
 
-  let bufferTimeout = null;
-  let isActuallyBuffering = false;
-
-  const handleWaiting = () => {
-    console.log('Video waiting');
-    bufferTimeout = setTimeout(() => {
-      if (video.readyState < video.HAVE_FUTURE_DATA) {
-        isActuallyBuffering = true;
-        setIsBuffering(true);
+    const handleError = (e) => {
+      console.error('Video error:', e);
+      console.error('Video error details:', video.error);
+      let errorMsg = 'Video playback error. ';
+      
+      if (video.error) {
+        switch(video.error.code) {
+          case 1:
+            errorMsg += 'Video loading aborted.';
+            break;
+          case 2:
+            errorMsg += 'Network error occurred.';
+            break;
+          case 3:
+            errorMsg += 'Video format not supported.';
+            break;
+          case 4:
+            errorMsg += 'Video source not found.';
+            break;
+          default:
+            errorMsg += 'Unknown error occurred.';
+        }
       }
-    }, 2000);
-  };
-  
-  const handleCanPlay = () => {
-    console.log('Video can play');
-    if (bufferTimeout) clearTimeout(bufferTimeout);
-    isActuallyBuffering = false;
-    setIsBuffering(false);
-    setVideoLoading(false);
-  };
-  
-  const handleCanPlayThrough = () => {
-    console.log('Video can play through');
-    if (bufferTimeout) clearTimeout(bufferTimeout);
-    isActuallyBuffering = false;
-    setIsBuffering(false);
-    setVideoLoading(false);
-  };
-  
-  const handlePlaying = () => {
-    console.log('Video playing');
-    if (bufferTimeout) clearTimeout(bufferTimeout);
-    isActuallyBuffering = false;
-    setIsBuffering(false);
-    setVideoLoading(false);
-  };
+      
+      setError(errorMsg);
+      setVideoLoading(false);
+    };
 
-  const handleProgress = () => {
-    if (isActuallyBuffering && video.readyState >= video.HAVE_FUTURE_DATA) {
-      if (bufferTimeout) clearTimeout(bufferTimeout);
-      isActuallyBuffering = false;
-      setIsBuffering(false);
-    }
-  };
+    const handleLoadedData = () => {
+      setVideoLoading(false);
+    };
 
-  const handleStalled = () => {
-    console.log('Video stalled');
-    if (!video.paused && video.readyState < video.HAVE_FUTURE_DATA) {
-      setIsBuffering(true);
-      isActuallyBuffering = true;
-    }
-  };
+    const handleLoadedMetadata = () => {
+      setVideoLoading(false);
+    };
 
-  const handleLoadedData = () => {
-    console.log('Video data loaded');
-    if (bufferTimeout) clearTimeout(bufferTimeout);
-    isActuallyBuffering = false;
-    setVideoLoading(false);
-    setIsBuffering(false);
-  };
+    video.addEventListener('loadeddata', handleLoadedData);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('error', handleError);
 
-  const handleLoadedMetadata = () => {
-    console.log('Video metadata loaded');
-    setVideoLoading(false);
-  };
-
-  const handleError = (e) => {
-    console.error('Video error:', e);
-    console.error('Video error details:', video.error);
-    let errorMsg = 'Video playback error. ';
-    
-    if (video.error) {
-      switch(video.error.code) {
-        case 1:
-          errorMsg += 'Video loading aborted.';
-          break;
-        case 2:
-          errorMsg += 'Network error occurred.';
-          break;
-        case 3:
-          errorMsg += 'Video format not supported.';
-          break;
-        case 4:
-          errorMsg += 'Video source not found.';
-          break;
-        default:
-          errorMsg += 'Unknown error occurred.';
-      }
-    }
-    
-    setError(errorMsg);
-    setIsBuffering(false);
-    setVideoLoading(false);
-  };
-
-  video.addEventListener('waiting', handleWaiting);
-  video.addEventListener('canplay', handleCanPlay);
-  video.addEventListener('canplaythrough', handleCanPlayThrough);
-  video.addEventListener('playing', handlePlaying);
-  video.addEventListener('progress', handleProgress);
-  video.addEventListener('stalled', handleStalled);
-  video.addEventListener('loadeddata', handleLoadedData);
-  video.addEventListener('loadedmetadata', handleLoadedMetadata);
-  video.addEventListener('error', handleError);
-
-  return () => {
-    if (bufferTimeout) clearTimeout(bufferTimeout);
-    video.removeEventListener('waiting', handleWaiting);
-    video.removeEventListener('canplay', handleCanPlay);
-    video.removeEventListener('canplaythrough', handleCanPlayThrough);
-    video.removeEventListener('playing', handlePlaying);
-    video.removeEventListener('progress', handleProgress);
-    video.removeEventListener('stalled', handleStalled);
-    video.removeEventListener('loadeddata', handleLoadedData);
-    video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-    video.removeEventListener('error', handleError);
-  };
-}, [videoUrl]);
-
+    return () => {
+      video.removeEventListener('loadeddata', handleLoadedData);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('error', handleError);
+    };
+  }, [videoUrl]);
 
   async function fetchCourses() {
     try {
@@ -261,7 +186,6 @@ export default function PremiumDashboard() {
     setCurrentCourse(course);
     setIsPlaying(false);
     setError('');
-    setIsBuffering(false);
     
     if (videoRef.current) {
       videoRef.current.pause();
@@ -401,29 +325,8 @@ export default function PremiumDashboard() {
   function handleSeek(e) {
     if (!videoRef.current) return;
     const seekTime = parseFloat(e.target.value);
-    
-    const wasPlaying = !videoRef.current.paused;
-    videoRef.current.pause();
-    
     videoRef.current.currentTime = seekTime;
     setCurrentTime(seekTime);
-    setIsBuffering(true);
-    
-    if (wasPlaying) {
-      setTimeout(() => {
-        if (videoRef.current) {
-          const playPromise = videoRef.current.play();
-          if (playPromise !== undefined) {
-            playPromise.catch(err => {
-              console.error('Error resuming playback:', err);
-              setIsBuffering(false);
-            });
-          }
-        }
-      }, 300);
-    } else {
-      setIsBuffering(false);
-    }
   }
 
   function handleVolumeChange(e) {
@@ -459,20 +362,17 @@ export default function PremiumDashboard() {
   }
 
   function toggleFullscreen() {
-    // For mobile devices, try to fullscreen the video element directly
     const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     const elementToFullscreen = isMobile && videoRef.current ? videoRef.current : containerRef.current;
     
     if (!elementToFullscreen) return;
     
     if (!isFullscreen) {
-      // Try different fullscreen methods based on browser support
       if (elementToFullscreen.requestFullscreen) {
         elementToFullscreen.requestFullscreen();
       } else if (elementToFullscreen.webkitRequestFullscreen) {
         elementToFullscreen.webkitRequestFullscreen();
       } else if (elementToFullscreen.webkitEnterFullscreen) {
-        // iOS specific for video elements
         elementToFullscreen.webkitEnterFullscreen();
       } else if (elementToFullscreen.mozRequestFullScreen) {
         elementToFullscreen.mozRequestFullScreen();
@@ -642,16 +542,6 @@ export default function PremiumDashboard() {
             </div>
           )}
           
-          {isBuffering && !error && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#e4b8ae] mx-auto mb-4"></div>
-                <p className="text-white">Buffering...</p>
-              </div>
-            </div>
-          )}
-          
-          {/* Video element - always present but hidden when no video */}
           <div 
             className="relative w-full h-full cursor-pointer"
             onClick={videoUrl ? handlePlayPause : undefined}
@@ -665,15 +555,12 @@ export default function PremiumDashboard() {
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
               onEnded={() => setIsPlaying(false)}
-              onSeeking={() => setIsBuffering(true)}
-              onSeeked={() => setIsBuffering(false)}
               playsInline
               preload="metadata"
               controlsList="nodownload"
               webkitPlaysinline
             />
             
-            {/* Show placeholder when no video */}
             {!videoUrl && !videoLoading && (
               <div className="absolute inset-0 flex items-center justify-center">
                 <p className="text-gray-400 text-sm md:text-base">Select a course from the sidebar to start watching</p>
@@ -688,14 +575,12 @@ export default function PremiumDashboard() {
             )}
           </div>
           
-          {/* Watermark - show only when video is loaded */}
           {videoUrl && (
             <div className="absolute top-4 right-4 text-white text-opacity-20 text-sm pointer-events-none select-none">
               {userDoc?.email}
             </div>
           )}
           
-          {/* Controls - always visible */}
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-2 md:p-4 pointer-events-auto">
             {videoUrl && (
               <div className="mb-2 md:mb-4">
@@ -776,7 +661,6 @@ export default function PremiumDashboard() {
                 )}
               </div>
               
-              {/* Fullscreen button - always visible */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
