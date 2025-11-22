@@ -29,7 +29,13 @@ export default function Login() {
       setError('');
       setLoading(true);
       await signin(email, password);
-      router.push('/dashboard');
+      
+      // Check if admin and redirect accordingly
+      if (email === 'omarhakeem@bytelyft.io') {
+        router.push('/admin');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (error) {
       setError('Failed to sign in. Please check your credentials.');
       console.error('Sign in error:', error);
