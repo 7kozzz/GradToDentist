@@ -28,8 +28,7 @@ export default function AdminPanel() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUserEmail(user.email);
-       //const adminCheck = user.email === 'mahaalsehli@hotmail.com';
-       const adminCheck = user.email === 'omarhakeem@bytelyft.io';
+        const adminCheck = user.email === 'mahaalsehli@hotmail.com';
         setIsAdmin(adminCheck);
         
         if (adminCheck) {
@@ -470,7 +469,7 @@ export default function AdminPanel() {
                           <button
                             onClick={() => togglePremium(user.id, user.isPremium)}
                             disabled={updating === user.id}
-                            className={`px-6 py-3 rounded-lg font-bold transition-all shadow-md hover:shadow-lg transform hover:scale-105 ${
+                            className={`px-4 py-2 rounded-lg font-bold transition-all shadow-md hover:shadow-lg transform hover:scale-105 ${
                               user.isPremium
                                 ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white'
                                 : 'bg-gradient-to-r from-[#e4b8ae] to-[#f7ccc5] hover:from-[#d4a89e] hover:to-[#e7bcb5] text-white'
@@ -482,9 +481,9 @@ export default function AdminPanel() {
                                 Updating...
                               </span>
                             ) : user.isPremium ? (
-                              '❌ Remove Premium'
+                              '❌ Revoke'
                             ) : (
-                              '✨ Grant Premium'
+                              '✨ Grant'
                             )}
                           </button>
                         </td>
@@ -606,7 +605,6 @@ export default function AdminPanel() {
                       
                       <div className="flex gap-6 text-gray-600 text-sm">
                         <div className="flex items-center gap-2">
-                          <Percent size={16} />
                           <span className="font-semibold">{code.percentage}% OFF</span>
                         </div>
                         <div className="flex items-center gap-2">
