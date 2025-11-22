@@ -6,6 +6,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '@/contexts/AuthContext';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -28,13 +30,40 @@ export default function Login() {
     try {
       setError('');
       setLoading(true);
-      await signin(email, password);
+      const userCredential = await signin(email, password);
       
-      // Check if admin and redirect accordingly
-      if (email === 'mahaalsehli@hotmail.com') {
+      // Check if admin (Dr. Maha)
+      if (email.toLowerCase() === 'mahaalsehli@hotmail.com') {
         router.push('/admin');
+        return;
+      }
+      
+      // For regular users, check premium status
+      const userDocRef = doc(db, 'Users', userCredential.user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        
+        // Check if premium and not expired
+        if (userData.isPremium && userData.renewDate) {
+          const renewDate = userData.renewDate.toDate();
+          if (renewDate < new Date()) {
+            router.push('/subscription-expired');
+            return;
+          }
+          // Premium and not expired -> dashboard
+          router.push('/dashboard');
+        } else if (userData.isPremium) {
+          // Premium but no renewDate
+          router.push('/dashboard');
+        } else {
+          // Not premium -> course details
+          router.push('/course-details');
+        }
       } else {
-        router.push('/dashboard');
+        // No user document -> course details
+        router.push('/course-details');
       }
     } catch (error) {
       setError('Failed to sign in. Please check your credentials.');
