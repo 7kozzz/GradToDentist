@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { User, DollarSign, Crown, Users, Mail, Calendar, Check, X, TrendingUp, Trash2, Plus, Tag, Percent } from 'lucide-react';
+import { User, DollarSign, Crown, Users, Mail, Calendar, Check, X, TrendingUp, Trash2, Plus, Tag, Percent, LogOut } from 'lucide-react';
 import { collection, getDocs, doc, updateDoc, addDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
-import { onAuthStateChanged } from 'firebase/auth';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { auth, db } from '../../lib/firebase';
 
