@@ -31,7 +31,7 @@ export default function Login() {
       await signin(email, password);
       
       // Check if admin and redirect accordingly
-      if (email === 'omarhakeem@bytelyft.io') {
+      if (email === 'mahaalsehli@hotmail.com') {
         router.push('/admin');
       } else {
         router.push('/dashboard');

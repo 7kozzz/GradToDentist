@@ -28,8 +28,7 @@ export default function AdminPanel() {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         setCurrentUserEmail(user.email);
-        //const adminCheck = user.email === 'mahaalsehli@hotmail.com';
-        const adminCheck = user.email === 'omarhakeem@bytelyft.io';
+        const adminCheck = user.email === 'mahaalsehli@hotmail.com';
         setIsAdmin(adminCheck);
         
         if (adminCheck) {
