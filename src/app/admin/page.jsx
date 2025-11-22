@@ -170,6 +170,16 @@ export default function AdminPanel() {
     }
   };
 
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      router.push('/login');
+    } catch (error) {
+      console.error('Error signing out:', error);
+      alert('Error signing out');
+    }
+  };
+
   const formatDate = (timestamp) => {
     if (!timestamp?.seconds) return 'N/A';
     return new Date(timestamp.seconds * 1000).toLocaleString('en-US', {
@@ -298,8 +308,19 @@ export default function AdminPanel() {
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
       <div className="max-w-7xl mx-auto">
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">Admin Dashboard</h1>
-          <p className="text-gray-600">Welcome back, Dr. Maha 👋</p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-800 mb-2">Admin Dashboard</h1>
+              <p className="text-gray-600">Welcome back, Dr. Maha 👋</p>
+            </div>
+            <button
+              onClick={handleSignOut}
+              className="bg-red-500 hover:bg-red-600 text-white px-6 py-3 rounded-lg font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+            >
+              <LogOut size={20} />
+              Sign Out
+            </button>
+          </div>
         </div>
 
         <div className="flex gap-3 mb-8 border-b-2 border-gray-200">
